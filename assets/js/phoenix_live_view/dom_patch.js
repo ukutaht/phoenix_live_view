@@ -44,6 +44,7 @@ export default class DOMPatch {
     this.targetContainer = this.isCIDPatch()
       ? this.targetCIDContainer(html)
       : container;
+
     this.callbacks = {
       beforeadded: [],
       beforeupdated: [],
@@ -490,6 +491,7 @@ export default class DOMPatch {
       morph(targetContainer, html);
       // normal patch complete, teleport elements now
       portalCallbacks.forEach((callback) => callback());
+
       // check for any teleported elements that are not in the view any more
       // and remove them
       this.view.portalElementIds.forEach((id) => {
@@ -729,7 +731,9 @@ export default class DOMPatch {
     return Array.from(parent.children).indexOf(child);
   }
 
-  teleport(el, morph) {
+  teleport(el, morph, depth = 0) {
+    if (depth > 10) return;
+
     const targetSelector = el.getAttribute(PHX_PORTAL);
     const portalContainer = document.querySelector(targetSelector);
     if (!portalContainer) {
@@ -777,7 +781,13 @@ export default class DOMPatch {
     // to cleanup when the view is destroyed, in case the portal target
     // is outside the view itself
     this.view.pushPortalElementId(toTeleport.id);
+
+    // Process any nested portals in the teleported content
+    portalTarget.querySelectorAll(`template[${PHX_PORTAL}]`).forEach(nested => {
+      this.teleport(nested, morph, depth + 1);
+    });
   }
+
 
   handleRuntimeHook(el, source) {
     // usually, scripts are not executed when morphdom adds them to the DOM
