@@ -115,23 +115,20 @@ test("teleported hook works correctly", async ({ page }) => {
   );
 });
 
-test("nested portals work correctly", async ({ page }) => {
+test("nested portals render and work correctly", async ({ page }) => {
   await page.goto("/portal?tick=false");
   await syncLV(page);
 
-  // Verify outer portal wrapper exists and has teleported attribute
+  // Verify outer portal is teleported
   await expect(page.locator("[data-phx-teleported-src=nested-portal-source]")).toHaveCount(1);
-
-  // Verify the outer portal content exists
   await expect(page.locator("#outer-portal")).toHaveCount(1);
 
-  // Verify inner portal gets teleported (nested portals should now work)
+  // Verify inner portal is teleported
   await expect(page.locator("[data-phx-teleported-src=inner-portal-source]")).toHaveCount(1);
   await expect(page.locator("#inner-portal")).toHaveCount(1);
 
   // Verify nested structure: inner portal should be inside outer portal
-  const outerPortal = page.locator("#outer-portal");
-  await expect(outerPortal.locator("#inner-portal")).toHaveCount(1);
+  await expect(page.locator("#outer-portal").locator("#inner-portal")).toHaveCount(1);
 
   // Test that events work in nested portals
   await expect(page.locator("#nested-portal-count")).toHaveText("0");
@@ -142,15 +139,24 @@ test("nested portals work correctly", async ({ page }) => {
   await expect(page.locator("#nested-portal-content")).toContainText("Tick count: 0");
   await evalLV(page, "send(self(), :tick)");
   await expect(page.locator("#nested-portal-content")).toContainText("Tick count: 1");
+});
 
-  // Test toggling visibility of nested portals
+test("nested portals cleanup and re-render correctly", async ({ page }) => {
+  await page.goto("/portal?tick=false");
+  await syncLV(page);
+
+  // Verify initial state
+  await expect(page.locator("#outer-portal")).toHaveCount(1);
+  await expect(page.locator("#inner-portal")).toHaveCount(1);
+
+  // Toggle off - both portals should be removed
   await page.getByRole("button", { name: "Toggle nested portals" }).click();
   await expect(page.locator("[data-phx-teleported-src=nested-portal-source]")).toHaveCount(0);
   await expect(page.locator("[data-phx-teleported-src=inner-portal-source]")).toHaveCount(0);
   await expect(page.locator("#outer-portal")).toHaveCount(0);
   await expect(page.locator("#inner-portal")).toHaveCount(0);
 
-  // Toggle back and verify they reappear with correct nesting
+  // Toggle back on - both portals should reappear with correct nesting
   await page.getByRole("button", { name: "Toggle nested portals" }).click();
   await expect(page.locator("[data-phx-teleported-src=nested-portal-source]")).toHaveCount(1);
   await expect(page.locator("[data-phx-teleported-src=inner-portal-source]")).toHaveCount(1);
